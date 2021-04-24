@@ -1,6 +1,7 @@
 #ifndef BST_H
 #define BST_H
 
+#include <string>
 #include "bin_tree_node.h"
 #include "queue.h"
 
@@ -17,21 +18,19 @@ private:
 
 public:
 	Bst();
-	Bst(T data);
+	Bst(T data, string key);
 	~Bst();
 	
-	void add(T data);
+	void add(T data, string key);
 	//Agrega <data> al árbol en caso de que no esté incluido previamente.
 	//POST: agrega un dato nuevo e incrementa el tamaño.
 	//
-	T pop();
-	/*EN CONSTRUCCIÓN*/
-	//necesito crear un get() que devuelva un puntero al dato (o NULL si no existe)
-	//y ahí eliminarlo del árbol, enlazando sus hijos con su padre de alguna forma adecuada.
+	T* erase(string key);
+	//POST: deletes and returns the value saved in the node according to the key. 
+	//If key doesn't match any key in the tree, it returns NULL.
+	//POST: borra y devuelve el dato guardado según la clave <key>. En caso de 
+	//no hallarse dicha clave, develve NULL.
 	//
-	//
-	T get();
-
 	bool empty();
 	//PRE: el árbol existe.
 	//POST: devuelve true si el arbol está vacío y false si no lo está.
@@ -64,9 +63,10 @@ public:
 	void showPostOrder();
 	//POST: imprime los elementos del árbol ordenados según recorrido de post-orden.
 	//
-	T* search(T data);
-	//Busca <data> en el árbol.
-	//POST: devuelve true o false si <data> está o no en el árbol respectivamente.
+	T *search(string key);
+	//Busca una clave en el árbol y devuelve su valor.
+	//POST: si existe la clave, devuelve un PUNTERO al valor correspondiente.
+	//(OJO: si el tipo de dato a guardar es puntero a algo, devuelve un doble puntero).
 	//
 };
 
@@ -81,8 +81,8 @@ Bst <T>::Bst(){
 
 
 template <typename T>
-Bst <T>::Bst(T data){
-	_root = BinTreeNode<T>(data);
+Bst <T>::Bst(T data, string key){
+	_root = new BinTreeNode<T>(data, key);
 	_size = 1;
 	_levels = 1;
 }
@@ -96,15 +96,64 @@ bool Bst<T> ::empty(){
 
 
 template <typename T>
-void Bst <T>::add(T data){
+void Bst <T>::add(T data, string key){
 	if(empty()){
-		_root = new BinTreeNode<T>(data);
+		_root = new BinTreeNode<T>(data, key);
 		_size = 1;
 		_levels = 1;
 	}
-	else if (_root->addBst(data))
+	else if (_root->addBst(data, key))
 		_size++;
 }
+
+
+template <typename T>
+T* Bst <T>::erase(string key){
+	if(_root == NULL) 
+		return NULL;
+
+	BinTreeNode<T> *node = _root->search(key);
+	if (node == NULL)
+		return NULL;
+
+	//found the node with the key. Saves the value in <data> var.
+	T *data = node->getData();
+//	cout << "el nodo hallado contiene al personaje " << (*data)->nombre() << endl;
+	
+	//case node with no childs
+	if(node->isLeaf()){
+		node->flipPrev(NULL);
+		delete node;
+	}
+
+	//case node has ONE child (right branch)
+	else if(node->left() == 0){
+		node->erasingFlip("right");
+		delete node;
+	}
+	else if(node->right() == 0){//(left branch)
+		node->erasingFlip("left");
+		delete node;
+	}
+	//case node has 2 childrens
+	else{
+		//
+		//Looks for the middle value (a leaf) between this node and right sub-root (min from this->right())
+		//and copies its key and value in this node.
+		//Then, erases that leaf.
+		BinTreeNode<T>* leaf = node->right()->findMin();
+		leaf->flipPrev(NULL);
+//		cout << "la hoja que va a reemplazarlo es " << (*leaf->getData())->nombre() << endl;
+		node->setKey(leaf->getKey());
+		node->setData(*leaf->getData(), true);
+		leaf->setData(NULL);
+		delete leaf;
+	}
+	_size--;
+//	showPreOrder();
+	return data;
+}
+
 
 
 template <typename T>
@@ -163,7 +212,7 @@ void Bst <T>::showPreOrder(){
 	else{
 		cout << "Elements in the tree in pre-order scanning:\n < ";
 		for (size_t i = 0; i < this->_size; i++)
-			cout << list->dequeue() << (i != this->_size - 1 ? ", " : " >");
+			cout << list->dequeue()->nombre() << (i != this->_size - 1 ? ", " : " >");
 		cout << endl;
 		delete list;
 	}
@@ -202,15 +251,20 @@ void Bst <T>::showPostOrder(){
 
 
 template <typename T>
-T* Bst <T>::search(T data){
+T *Bst <T>::search(string key){
 	//
 	//Primero chequeo que el árbol no esté vacío.
 	//Si lo está, devuelvo NULL; si no, ejecuto el método de búsqueda
 	//correspondiente a la clase nodo y devuelvo lo que retorne.
-	if (_root == NULL)
+	if (empty())
 		return NULL;
-	return _root->search(data);
+
+	BinTreeNode<T> *aux = _root->search(key);
+	if (aux == NULL)
+		return NULL;
+	return aux->getData();
 }
+
 
 
 template <typename T>
